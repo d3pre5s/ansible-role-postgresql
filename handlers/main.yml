@@ -1,0 +1,13 @@
+---
+# handlers file for ansible-role-postgresql
+- name: "restart postgresql"
+  service:
+    name: postgresql
+    state: restarted
+    enabled: yes
+
+- name: "reload postgresql"
+  service:
+    name: postgresql
+    state: reloaded
+    enabled: yes

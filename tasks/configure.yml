@@ -1,0 +1,22 @@
+---
+- name: PostgreSQL | Ensure PostgreSQL Python libraries are installed
+  apt:
+    name:
+      - gnupg
+      - python3-psycopg2
+    update_cache: yes
+    state: present
+
+- name: PostgreSQL | Add apt-key
+  apt_key:
+    url: "https://www.postgresql.org/media/keys/{{ postgresql_apt_key }}"
+    validate_certs: "{{ postgresql_validate_certs }}"
+  when: postgresql_apt_key is defined
+
+- name: PostgreSQL | Add apt repo
+  apt_repository:
+    repo: "deb http://apt.postgresql.org/pub/repos/apt/ {{ ansible_distribution_release }}-pgdg main"
+    filename: "pgdg"
+    state: present
+    update_cache: yes
+  when: postgresql_apt_key is defined

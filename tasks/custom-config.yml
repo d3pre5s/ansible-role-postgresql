@@ -1,0 +1,29 @@
+---
+- name: PosgtreSQL | Configure initial PostgreSQL settings
+  lineinfile:
+    dest: "/etc/postgresql-common/createcluster.conf"
+    regexp: "^#?{{ item.option }}.+$"
+    line: "{{ item.option }} = '{{ item.value }}'"
+    state: "{{ item.state | default('present') }}"
+  with_items: "{{ postgresql_cluster_options }}"
+
+- name: PostgreSQL | set directory path list
+  set_fact:
+    data_directory_path_list: "{% for x in postgresql_cluster_options %}{% if x.option == 'data_directory' %}{{ x.value.split('/') }}{% endif %}{% endfor %}"
+
+- name: PosgtreSQL | Ensure that all path is o+x to access postgres user
+  vars:
+    counter: "{{ range(2, data_directory_path_list|length + 1) |list }}"
+  file:
+    path: "{{ data_directory_path_list|batch(item)|list|first|join('/') }}"
+    state: directory
+    mode: o+x
+  with_items: "{{ counter }}"
+
+- name: PosgtreSQL | Ensure folder is exist and with right permissions
+  file:
+    path: "{{ data_directory_path_list|join('/') }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: 0755

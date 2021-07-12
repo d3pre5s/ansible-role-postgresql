@@ -1,0 +1,44 @@
+---
+#- block:
+    - name: PostgreSQL | Add db in PostgreSQL
+      postgresql_db:
+        name: "{{ item.db }}"
+        encoding: '{{ item.encoding | default("UNICODE") }}'
+        owner: "{{ item.user }}"
+        port: "{{ postgresql_port }}"
+      with_items: "{{ postgresql_dbs }}"
+
+    - name: PostgreSQL | Added extensions to a database
+      postgresql_ext:
+        name: "{{ item.1 }}"
+        db: "{{ item.0.db }}"
+        port: "{{ postgresql_port }}"
+      with_subelements:
+        - "{{ postgresql_dbs }}"
+        - ext
+        - flags:
+          skip_missing: True
+
+    - name: PostgreSQL | Added schemas to a database
+      postgresql_schema:
+        name: "{{ item.1 }}"
+        database: "{{ item.0.db }}"
+        owner: "{{ item.0.user }}"
+      with_subelements:
+        - "{{ postgresql_dbs }}"
+        - schema
+        - flags:
+          skip_missing: True
+
+    - name: PostgreSQL | Add privs in PostgreSQL
+      postgresql_privs:
+        db: postgres
+        type: database
+        privs: ALL
+        obj: "{{ item.db }}"
+        role: "{{ item.user }}"
+        port: "{{ postgresql_port }}"
+      with_items: "{{ postgresql_dbs }}"
+      ignore_errors: true
+#  become: yes
+#  become_user: postgres

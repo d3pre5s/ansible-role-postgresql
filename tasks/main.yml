@@ -1,0 +1,61 @@
+---
+# tasks file for ansible-role-postgresql
+- include: configure.yml
+
+- name: PostgreSQL | Ensure PostgreSQL-common is installed
+  register: psql_exist
+  apt:
+    name: postgresql-common
+    state: present
+
+#- include: custom-config.yml
+#  when:
+#    - psql_exist.changed
+#    - "'data_directory' in (postgresql_cluster_options|map(attribute='option')|list)"
+
+- name: PosgtreSQL | Ensure PostgreSQL packages are installed
+  apt:
+    name:
+      - "postgresql-{{ postgresql_version }}"
+      - "postgresql-contrib-{{ postgresql_version }}"
+    state: present
+
+- name: PosgtreSQL | Create pg_hba.conf
+  template:
+    src: "{{ postgresql_pghba_template_path }}"
+    dest: "{{ postgresql_config_path }}/pg_hba.conf"
+    owner: postgres
+    group: postgres
+    mode: 0640
+  notify: "restart postgresql"
+
+- name: PosgtreSQL | Configure PostgreSQL settings
+  lineinfile:
+    dest: "{{ postgresql_config_path }}/postgresql.conf"
+    regexp: "^#?{{ item.option }}.+$"
+    line: "{{ item.option }} = '{{ item.value }}'"
+    state: "{{ item.state | default('present') }}"
+  with_items: "{{ postgresql_config_options }}"
+  notify: "restart postgresql"
+
+- meta: flush_handlers
+
+- name: PosgtreSQL | Add Users in PostgreSQL
+  postgresql_user:
+    name: "{{ item.user }}"
+    password: "{{ item.password }}"
+    encrypted: "{{ item.encrypted | default('no') }}"
+    role_attr_flags: "{{ item.role_attr_flags | default('NOSUPERUSER') }}"
+    port: "{{ postgresql_port }}"
+  with_items: "{{ postgresql_users }}"
+
+- include: databases.yml
+  when: postgresql_create_db
+  become: yes
+  become_user: postgres
+
+- name: PostgreSQL | Install postgis if defined
+  apt:
+    name: "{{ postgresql_postgis_names }}"
+    state: present
+  when: postgresql_postgis_version is defined
